@@ -1,0 +1,74 @@
+
+const express = require("express");
+const cors = require("cors");
+const session = require("express-session");
+const bodyParser = require("body-parser");
+const fs = require("fs");
+
+const app = express();
+app.use(cors({ origin: true, credentials: true }));
+app.use(bodyParser.json());
+app.use(session({
+  secret: "mysecret",
+  resave: false,
+  saveUninitialized: true
+}));
+
+// 로그인 처리
+app.post("/login", (req, res) => {
+  const { username, password } = req.body;
+  const users = JSON.parse(fs.readFileSync("users.json"));
+  const found = users.find(u => u.username === username && u.password === password);
+  if (found) {
+    req.session.user = username;
+    res.json({ success: true });
+  } else {
+    res.json({ success: false });
+  }
+});
+
+// 로그인 상태 확인
+app.get("/session", (req, res) => {
+  res.json({ user: req.session.user || null });
+});
+
+// 좌석 예매 처리
+app.post("/reserve", (req, res) => {
+  const { seat } = req.body;
+  const user = req.session.user;
+
+  if (!user) {
+    return res.status(403).json({ success: false, message: "로그인이 필요합니다" });
+  }
+
+  const filePath = "reservedSeats.json";
+  let data = [];
+
+  if (fs.existsSync(filePath)) {
+    data = JSON.parse(fs.readFileSync(filePath));
+  }
+
+  const alreadyReserved = data.some(entry => entry.seat === seat);
+  if (alreadyReserved) {
+    return res.json({ success: false, message: "이미 예매된 좌석입니다" });
+  }
+
+  data.push({ seat, user });
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  res.json({ success: true });
+});
+
+// 예매된 좌석 목록 조회
+app.get("/reserved", (req, res) => {
+  const filePath = "reservedSeats.json";
+  if (fs.existsSync(filePath)) {
+    const data = JSON.parse(fs.readFileSync(filePath));
+    res.json(data);
+  } else {
+    res.json([]);
+  }
+});
+
+app.listen(10000, () => {
+  console.log("서버 실행 중");
+});

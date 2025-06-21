@@ -6,12 +6,20 @@ const bodyParser = require("body-parser");
 const fs = require("fs");
 
 const app = express();
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({
+  origin: "https://teamhtml.onrender.com",  // ← 정적 페이지 주소로 교체
+  credentials: true
+}));
+
 app.use(bodyParser.json());
 app.use(session({
   secret: "mysecret",
   resave: false,
-  saveUninitialized: true
+  saveUninitialized: true,
+  cookie: {
+    sameSite: 'none',  // 크로스 도메인 세션 허용
+    secure: true       // HTTPS 필수
+  }
 }));
 
 // 로그인 처리
